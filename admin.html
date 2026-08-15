@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RestoApp - Panel de Administración</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="contenedor-principal">
+
+    <section id="vista-login">
+      <h2>Acceso Administrador</h2>
+      <form id="form-login">
+        <div class="item">
+          <label for="email">Correo</label>
+          <input type="email" id="email" autocomplete="username" required>
+        </div>
+        <div class="item">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" id="btn-login">INICIAR SESIÓN</button>
+      </form>
+      <div id="res-login" role="status" aria-live="polite"></div>
+    </section>
+    <section id="vista-admin" class="oculto">
+      <div class="admin-header">
+        <h2>Gestión de Menú</h2>
+        <button type="button" id="btn-logout" class="btn-secundario">Cerrar sesión</button>
+      </div>
+
+      <form id="form-admin">
+        <div class="item">
+          <label for="nombre-plato">Nombre del plato</label>
+          <input type="text" id="nombre-plato" placeholder="Ej. Hamburguesa especial" required>
+        </div>
+        <div class="item">
+          <label for="precio-plato">Precio ($)</label>
+          <input type="number" id="precio-plato" min="1" placeholder="Ej. 15000" required>
+        </div>
+        <button type="submit" id="btn-guardar">GUARDAR NUEVO PLATO</button>
+      </form>
+
+      <div id="res-admin" role="status" aria-live="polite"></div>
+    </section>
+
+    <div class="nav-link">
+      <a href="index.html">← Volver al módulo de pedidos</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { iniciarSesion, cerrarSesion, observarSesion, mensajeErrorAuth } from "./js/auth.js";
+    import { agregarPlato } from "./js/menu.js";
+
+    const vistaLogin = document.getElementById('vista-login');
+    const vistaAdmin = document.getElementById('vista-admin');
+
+    const formLogin = document.getElementById('form-login');
+    const btnLogin = document.getElementById('btn-login');
+    const resLogin = document.getElementById('res-login');
+
+    const btnLogout = document.getElementById('btn-logout');
+
+    const formAdmin = document.getElementById('form-admin');
+    const inputNombre = document.getElementById('nombre-plato');
+    const inputPrecio = document.getElementById('precio-plato');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const resAdmin = document.getElementById('res-admin');
+
+    function mostrarMensaje(el, texto, tipo = 'exito') {
+      el.textContent = texto;
+      el.classList.remove('mensaje-error', 'mensaje-exito');
+      el.classList.add(tipo === 'error' ? 'mensaje-error' : 'mensaje-exito');
+    }
+    observarSesion((usuario) => {
+      const haySesion = Boolean(usuario);
+      vistaLogin.classList.toggle('oculto', haySesion);
+      vistaAdmin.classList.toggle('oculto', !haySesion);
+    });
+
+    formLogin.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Ingresando...';
+      resLogin.textContent = '';
+
+      try {
+        await iniciarSesion(email, password);
+        formLogin.reset();
+      } catch (error) {
+        mostrarMensaje(resLogin, mensajeErrorAuth(error), 'error');
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'INICIAR SESIÓN';
+      }
+    });
+
+    btnLogout.addEventListener('click', () => cerrarSesion());
+
+    formAdmin.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+
+      btnGuardar.disabled = true;
+      btnGuardar.textContent = 'Guardando...';
+
+      try {
+        await agregarPlato(inputNombre.value, inputPrecio.value);
+        mostrarMensaje(resAdmin, '¡Plato agregado exitosamente al menú!');
+        formAdmin.reset();
+      } catch (error) {
+        console.error('Error al guardar:', error);
+        mostrarMensaje(resAdmin, error.message || 'Error al guardar el plato.', 'error');
+      } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.textContent = 'GUARDAR NUEVO PLATO';
+      }
+    });
+  </script>
+</body>
+</html>
