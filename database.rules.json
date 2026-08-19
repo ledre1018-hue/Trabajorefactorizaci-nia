@@ -1,8 +1,12 @@
 {
-    "rules": {
-      "Plaintext": {
-        ".read": true,
-        ".write": "auth != null"
-      }
+  "rules": {
+    "Plaintext": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "Stock": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
+}

@@ -1,169 +1,119 @@
-# RestoApp — Taller de Refactorización y Uso de IA
+# CHANGELOG — Refactorización RestoApp
 
-Versión refactorizada del proyecto legacy de RestoApp: pasó de ser un único
-`index.html` monolítico (variables globales, credenciales en el cliente,
-lógica mezclada con el DOM) a una **MPA modular** con módulos ES,
-autenticación real y reglas de seguridad en Firebase.
+## [2.0.0] Refactorización completa a MPA modular
 
----
+### Estructura (Ejercicio 1)
+- Vistas separadas: `index.html` (pedidos) y `admin.html` (administración).
+- `style.css` unificado, enlazado desde ambas vistas — sin estilos duplicados
+  ni reglas CSS basadas en selectores de atributo `[style*="..."]` (frágiles
+  y acoplados al marcado).
 
-## Estructura del proyecto
+### Módulos JS (Ejercicio 2)
+- `js/firebase-config.js`: único punto de inicialización de Firebase. Antes
+  la app se inicializaba dos veces (en `firebase-config.js` y en `auth.js`),
+  con configuraciones distintas — riesgo real de bugs por usar la instancia
+  equivocada.
+- `js/menu.js`: acceso a datos (`obtenerMenu`, `agregarPlato`, `eliminarPlato`),
+  con validación de entradas antes de tocar la base de datos.
+- `js/pedido.js`: lógica de negocio pura (cálculo de subtotal/IVA/total),
+  sin dependencias de DOM ni de Firebase — fácil de probar de forma aislada.
+- `js/auth.js`: identidad y sesión, separado del resto.
+- Cero variables en `window`; todo vive en el ámbito de cada módulo ES.
 
-```
-TALLER_REFACTORIZACIÓN_IA/
-├── index.html            # Vista pública: tomar pedidos
-├── admin.html            # Vista protegida: login + gestión de menú
-├── pedido.test.html       # Pruebas automatizadas de js/pedido.js
-├── style.css              # Hoja de estilos única (glassmorphism)
-├── database.rules.json    # Reglas de seguridad de Realtime Database
-├── CHANGELOG.md            # Historial de refactorizaciones
-├── README.md                # Este archivo
-└── js/
-    ├── firebase-config.js  # Única inicialización de Firebase (db + auth)
-    ├── auth.js              # Login/logout con Firebase Authentication
-    ├── menu.js               # CRUD del menú contra Realtime Database
-    └── pedido.js              # Lógica de negocio pura (cálculo de totales)
-```
+### Autenticación y seguridad (Ejercicio 3)
+- Se reemplazó la autenticación en cliente (usuario/clave hardcodeados o
+  comparados en JS) por **Firebase Authentication** real (`signInWithEmailAndPassword`).
+- `admin.html` ya no expone el formulario de gestión por defecto: solo se
+  muestra tras una sesión válida (`onAuthStateChanged`).
+- Se añadieron reglas de Realtime Database (`database.rules.json`) que
+  restringen la escritura en `/menu` a usuarios autenticados, reforzando en
+  el servidor lo que la interfaz ya oculta en el cliente.
+- Pendiente para el estudiante: subir las reglas con `firebase deploy --only database`
+  y crear el usuario admin desde la consola de Firebase.
 
----
+### Limpieza y pruebas (Ejercicio 4)
+- Se eliminaron los cálculos y ramas de código inalcanzables del legacy.
+- Validaciones explícitas con mensajes claros: nombre no vacío, precio y
+  cantidad numéricos y mayores a 0, en vez de fallar en silencio con `NaN`
+  o alertas genéricas.
+- Manejo de errores con `try/catch` en cada operación asíncrona (carga de
+  menú, guardado de plato, login), mostrando feedback en la UI en lugar de
+  solo loguear en consola.
+- Se añadió `pedido.test.html`: pruebas automatizadas para las funciones
+  puras de `js/pedido.js` (cálculo de subtotal/IVA/total, formateo de
+  moneda, validaciones). Se corre igual que las demás vistas, con Live
+  Server, sin necesidad de instalar ningún framework de testing.
 
-## Requisitos previos
+### Buenas prácticas (Ejercicio 5)
+- Manipulación del DOM aislada dentro de los `<script type="module">` de cada
+  HTML; los cálculos y el acceso a datos viven en `js/pedido.js` y `js/menu.js`.
+- Botones deshabilitados y con texto de estado ("Guardando...") durante
+  operaciones asíncronas, para evitar envíos duplicados.
+- Formularios reales (`<form>` + `submit`) en vez de solo `click` en botones,
+  lo que habilita validación nativa del navegador y envío con Enter.
 
-- Un navegador (Chrome, Firefox, etc).
-- La extensión **Live Server** de VS Code (o cualquier servidor estático —
-  los módulos ES no funcionan abriendo el HTML con doble clic, `file://`
-  no sirve para `import`/`export`).
-- Un proyecto de Firebase con **Realtime Database** y **Authentication**
-  habilitados (ya configurado en este taller como `tallerrefactori-ia`).
+## [2.0.1] Ajuste tras revisar la consola de Firebase real
+- `firebase-config.js` se completó con las credenciales reales del proyecto
+  `tallerrefactori-ia` (antes tenía placeholders).
+- Se corrigió `js/menu.js`: los datos de prueba en Realtime Database viven
+  bajo el nodo `Plaintext` con campos `{ id, name, price }`, no bajo `menu`
+  con `{ nombre, precio }` como se había asumido inicialmente. `index.html`
+  se actualizó para leer `plato.name` / `plato.price`.
+- `database.rules.json` ahora protege el nodo `Plaintext` (coincide con el
+  nombre real). Recomendado (no bloqueante): renombrar `Plaintext` → `menu`
+  desde la consola para mayor claridad; si se hace, solo hay que cambiar la
+  constante `RUTA_MENU` en `js/menu.js`.
+- Revisar la pestaña **Reglas** de Realtime Database: el modo de prueba por
+  defecto de Firebase expira a los 30 días — hay que reemplazarlo por el
+  contenido de `database.rules.json` antes de esa fecha.
+- Revisar **Authentication** en la consola: aún no hay ningún usuario creado,
+  así que el login de `admin.html` no podrá autenticar a nadie hasta crear
+  al menos un usuario con correo/contraseña.
 
----
+## [2.1.0] CRUD completo en el panel de administración
+- `admin.html` ahora lista todos los platos del menú (nombre + precio) con
+  un botón "✕" para eliminarlos, usando `eliminarPlato` (que ya existía en
+  `js/menu.js` pero no estaba conectado a ninguna vista).
+- La lista se re-dibuja automáticamente después de agregar o eliminar un
+  plato, y también al iniciar sesión — sin recargar la página.
+- Eliminar pide confirmación (`confirm()`) antes de borrar, para evitar
+  borrados accidentales por un clic de más.
+- Un solo listener con delegación de eventos maneja el clic de "eliminar"
+  en cualquier fila, incluidas las agregadas dinámicamente después.
+- Se evaluó integrar Pocket Flow (framework Python para agentes de IA que
+  evalúan calidad de código) como "puerta de calidad" automatizada, pero
+  no encaja en el stack de este taller (proyecto 100% estático + Firebase,
+  sin backend ni entorno Python). En su lugar, `pedido.test.html` cumple
+  ese rol como puerta de calidad simple: pruebas automatizadas que corren
+  en el navegador sin dependencias externas.
 
-## Cómo ejecutar el proyecto
+## [2.2.0] Gestión de stock de materia prima + edición de precios
+- **Nueva página `stock.html`** (MPA real, no una pestaña dentro de
+  `admin.html`): gestión de inventario de materia prima — pan, carne,
+  salchicha, verduras, etc. — categorizado en Comida rápida, Almuerzo,
+  Cena elegante o General. Protegida con el mismo guard de sesión que
+  `admin.html` (`observarSesion`).
+- **Nuevo módulo `js/stock.js`**: `obtenerStock`, `agregarIngrediente`,
+  `actualizarCantidad`, `eliminarIngrediente`, más las listas cerradas
+  `CATEGORIAS_STOCK` y `UNIDADES_STOCK` para evitar valores inconsistentes
+  escritos a mano (p. ej. "Comida Rapida" vs "comida rápida").
+- Filtro por categoría en la lista de inventario, cantidad editable en
+  línea con guardado inmediato (sin recargar la página).
+- **Edición de precio de platos existentes**: `admin.html` ahora permite
+  cambiar el precio de cualquier plato ya creado directamente desde la
+  lista (input + botón guardar), usando la nueva función
+  `actualizarPrecio` en `js/menu.js` (usa `update()` de Firebase en vez de
+  `set()`, para no pisar otros campos del registro).
+- `database.rules.json` se amplió con un nodo `Stock` cuya lectura
+  *también* requiere sesión (a diferencia del menú público, el inventario
+  es información interna del negocio, no algo que el mesero necesite ver).
 
-1. Clic derecho sobre `index.html` en VS Code → **Open with Live Server**.
-2. Se abre en `http://127.0.0.1:5500/index.html`.
-3. Desde ahí puedes navegar a `admin.html` con el link de abajo, o escribir
-   la URL directamente en el navegador.
-
----
-
-## Configuración de Firebase (ya hecha, para referencia)
-
-1. **Realtime Database → Reglas**: se publicó el contenido de
-   `database.rules.json`, que restringe la escritura del nodo `Plaintext`
-   (donde vive el menú) a usuarios autenticados, dejando la lectura pública:
-   ```json
-   {
-     "rules": {
-       "Plaintext": {
-         ".read": true,
-         ".write": "auth != null"
-       }
-     }
-   }
-   ```
-2. **Authentication → Sign-in method**: se habilitó el proveedor
-   **Correo electrónico/contraseña**.
-3. **Authentication → Users**: se creó un usuario administrador manualmente
-   desde la consola — es el que se usa para iniciar sesión en `admin.html`.
-4. **Configuración del proyecto → Tus apps**: las credenciales del SDK web
-   (`apiKey`, `authDomain`, `databaseURL`, etc.) están centralizadas en
-   `js/firebase-config.js`, el único archivo que llama a `initializeApp()`.
-
-> Nota sobre los datos: el menú vive bajo el nodo `Plaintext` con campos
-> `{ id, name, price }` (en inglés) — así quedó cargado originalmente en la
-> base de datos real del proyecto, y el código se ajustó para leer de ahí
-> en vez de forzar una migración de datos.
-
----
-
-## Qué se hizo en cada ejercicio del taller
-
-### Ejercicio 1 — Convertir a MPA
-- Vistas separadas: `index.html` (pedidos) y `admin.html` (login +
-  administración, en la misma vista según haya sesión o no).
-- Un único `style.css` en la raíz, enlazado desde ambos HTML — sin estilos
-  duplicados ni selectores CSS frágiles basados en atributos `style=""`.
-
-### Ejercicio 2 — Modularizar JavaScript
-- `js/firebase-config.js`: único punto de inicialización de Firebase
-  (antes se inicializaba dos veces con configuraciones distintas).
-- `js/menu.js`: acceso a datos del menú (`obtenerMenu`, `agregarPlato`,
-  `eliminarPlato`), con validación de entradas.
-- `js/pedido.js`: lógica de negocio pura, sin DOM ni Firebase.
-- `js/auth.js`: identidad y sesión, aislado del resto.
-- Cero variables en `window` — todo vive en el ámbito de cada módulo ES
-  (`import`/`export`).
-
-### Ejercicio 3 — Autenticación y seguridad
-- Se reemplazó cualquier patrón de usuario/clave hardcodeado por
-  **Firebase Authentication** real (`signInWithEmailAndPassword`).
-- `admin.html` no expone el formulario de gestión por defecto: solo
-  aparece tras una sesión válida (`onAuthStateChanged`).
-- `database.rules.json` refuerza en el servidor lo que la interfaz ya
-  oculta en el cliente — sin esto, cualquiera podría escribir en la base
-  de datos directamente vía la API de Firebase, sin pasar por la UI.
-
-### Ejercicio 4 — Limpieza y pruebas
-- Código muerto y cálculos inalcanzables del legacy, eliminados.
-- Validaciones explícitas con mensajes claros (nombre vacío, precio o
-  cantidad ≤ 0) en vez de fallos silenciosos con `NaN` o `alert()`
-  genéricos.
-- `try/catch` en cada operación asíncrona, con feedback visual en la UI
-  (no solo `console.error`).
-- **`pedido.test.html`**: pruebas automatizadas para las funciones puras
-  de `js/pedido.js` — corren en el navegador con Live Server, sin
-  necesidad de instalar ningún framework de testing. Cubren cálculo de
-  subtotal/IVA/total, tasa de IVA personalizada, formateo de moneda, y
-  validación de errores con cantidad/precio inválidos.
-
-### Ejercicio 5 — Buenas prácticas
-- Lógica de negocio (`calcularTotales` en `pedido.js`) separada por
-  completo de la manipulación del DOM, que vive solo en los
-  `<script type="module">` de cada HTML.
-- Botones deshabilitados con texto de estado ("Guardando...",
-  "Ingresando...") durante operaciones asíncronas, para evitar envíos
-  duplicados.
-- Formularios reales (`<form>` + evento `submit`) en vez de solo `click`,
-  habilitando validación nativa del navegador y envío con Enter.
-
----
-
-## Cómo verificar que todo funciona
-
-1. Abre `index.html` — el selector de platos debería llenarse solo desde
-   Firebase.
-2. Ve a `admin.html` — deberías ver un login, no el formulario de gestión.
-3. Inicia sesión con el usuario admin creado en Firebase.
-4. Agrega un plato nuevo — debería guardarse sin error de permisos.
-5. Vuelve a `index.html` y recarga — el plato nuevo debe aparecer en el
-   selector.
-6. Procesa un pedido — revisa que el subtotal, IVA (19%) y total sean
-   correctos.
-7. Cierra sesión en `admin.html` — debe volver al formulario de login.
-8. Abre `pedido.test.html` — las 11 pruebas automatizadas deben pasar en
-   verde.
-
----
-
-## Pendiente / ideas para seguir mejorando
-
-- Botón "Eliminar" por fila en `admin.html`, usando `eliminarPlato` (ya
-  expuesto en `js/menu.js`, solo falta conectarlo a la interfaz).
+## Pendiente sugerido para estudiantes
 - Ampliar `pedido.test.html` con más casos a medida que se agreguen
-  funciones nuevas a `js/pedido.js`.
-- Mover `style.css` a una carpeta `css/` si se quiere calzar exactamente
-  con la estructura de carpetas sugerida en el enunciado original.
-
----
-
-## Uso de IA en este taller
-
-Este proyecto se refactorizó con ayuda de IA (Gemini para una primera
-pasada, Claude para revisión, corrección de bugs y los módulos finales),
-siguiendo el enfoque de pedir cambios pequeños y justificables en vez de
-reescribir todo de una vez — por ejemplo: "separa el cálculo de IVA de la
-manipulación del DOM", "reemplaza la autenticación en cliente por Firebase
-Auth", "corrige el nodo/campos de la base de datos para que coincidan con
-los datos reales". El `CHANGELOG.md` documenta cada tanda de cambios con
-su justificación.
+  funciones nuevas a `js/pedido.js` o `js/stock.js`.
+- Vincular cada plato del menú con los ingredientes de `stock.html` que
+  consume (por ejemplo, un campo `receta: { panId, carneId, ... }` en cada
+  plato) para poder descontar stock automáticamente al procesar un pedido.
+- Si en el futuro el taller suma un backend real, ahí sí Pocket Flow
+  encajaría de forma natural para orquestar revisiones automáticas de
+  código con un LLM antes de cada despliegue.

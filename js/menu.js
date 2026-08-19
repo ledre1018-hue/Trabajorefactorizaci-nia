@@ -1,29 +1,15 @@
-// js/menu.js
-// -----------------------------------------------------------------------------
-// Responsabilidad única: acceso a datos del menú en Realtime Database.
-// No toca el DOM. Valida sus propias entradas para no depender de que
-// cada vista valide correctamente (defensa en profundidad).
-// -----------------------------------------------------------------------------
 import { db } from "./firebase-config.js";
 import {
   ref,
   get,
   push,
   set,
+  update,
   remove,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// IMPORTANTE: en la consola de Firebase los datos de prueba quedaron cargados
-// bajo el nodo "Plaintext" con los campos { id, name, price } (inglés), no
-// bajo "menu" con { nombre, precio } como se asumió en la primera versión.
-// Este archivo ahora apunta a lo que REALMENTE existe en la base de datos.
-//
-// Recomendado (opcional, no bloqueante): renombrar el nodo "Plaintext" a
-// "menu" desde la consola (Realtime Database > Datos > menú "⋮" > Importar
-// JSON) para que el nombre sea más claro. Si lo haces, solo cambia la
-// constante de abajo — el resto del código no se toca.
-const RUTA_MENU = "Plaintext";
 
+const RUTA_MENU = "Plaintext";
 
 export async function obtenerMenu() {
   const snapshot = await get(ref(db, RUTA_MENU));
@@ -48,6 +34,15 @@ export async function agregarPlato(nombre, precio) {
   });
 
   return nuevoPlatoRef.key;
+}
+
+export async function actualizarPrecio(id, nuevoPrecio) {
+  if (!id) throw new Error("Falta el id del plato a actualizar.");
+  const precioNumerico = Number(nuevoPrecio);
+  if (!Number.isFinite(precioNumerico) || precioNumerico <= 0) {
+    throw new Error("El precio debe ser un número mayor a 0.");
+  }
+  await update(ref(db, `${RUTA_MENU}/${id}`), { price: precioNumerico });
 }
 
 export async function eliminarPlato(id) {

@@ -24,6 +24,7 @@
       </form>
       <div id="res-login" role="status" aria-live="polite"></div>
     </section>
+
     <section id="vista-admin" class="oculto">
       <div class="admin-header">
         <h2>Gestión de Menú</h2>
@@ -43,6 +44,18 @@
       </form>
 
       <div id="res-admin" role="status" aria-live="polite"></div>
+
+      <div class="lista-header">
+        <h3>Platos en el menú</h3>
+        <span id="contador-platos" class="badge-contador">0</span>
+      </div>
+      <ul id="lista-platos" class="lista-platos">
+        <li class="lista-vacia">Cargando platos...</li>
+      </ul>
+
+      <div class="nav-link">
+        <a href="stock.html">📦 Ir a Gestión de Stock (materia prima)</a>
+      </div>
     </section>
 
     <div class="nav-link">
@@ -52,7 +65,7 @@
 
   <script type="module">
     import { iniciarSesion, cerrarSesion, observarSesion, mensajeErrorAuth } from "./js/auth.js";
-    import { agregarPlato } from "./js/menu.js";
+    import { obtenerMenu, agregarPlato, actualizarPrecio, eliminarPlato } from "./js/menu.js";
 
     const vistaLogin = document.getElementById('vista-login');
     const vistaAdmin = document.getElementById('vista-admin');
@@ -69,15 +82,89 @@
     const btnGuardar = document.getElementById('btn-guardar');
     const resAdmin = document.getElementById('res-admin');
 
+    const listaPlatos = document.getElementById('lista-platos');
+    const contadorPlatos = document.getElementById('contador-platos');
+
     function mostrarMensaje(el, texto, tipo = 'exito') {
       el.textContent = texto;
       el.classList.remove('mensaje-error', 'mensaje-exito');
       el.classList.add(tipo === 'error' ? 'mensaje-error' : 'mensaje-exito');
     }
+
+    async function renderizarPlatos() {
+      try {
+        const menu = await obtenerMenu();
+        const entradas = Object.entries(menu);
+        contadorPlatos.textContent = entradas.length;
+
+        if (entradas.length === 0) {
+          listaPlatos.innerHTML = '<li class="lista-vacia">Todavía no hay platos en el menú.</li>';
+          return;
+        }
+
+        listaPlatos.innerHTML = '';
+        entradas.forEach(([id, plato]) => {
+          const li = document.createElement('li');
+          li.className = 'fila-plato';
+          li.innerHTML = `
+            <span class="fila-plato-nombre">${plato.name}</span>
+            <input type="number" class="input-precio-fila" min="1" value="${plato.price}" data-id="${id}" data-original="${plato.price}" aria-label="Precio de ${plato.name}">
+            <button type="button" class="btn-guardar-precio" data-id="${id}" title="Guardar precio">💾</button>
+            <button type="button" class="btn-eliminar" data-id="${id}" aria-label="Eliminar ${plato.name}">✕</button>
+          `;
+          listaPlatos.appendChild(li);
+        });
+      } catch (error) {
+        console.error('Error al listar platos:', error);
+        listaPlatos.innerHTML = '<li class="lista-vacia">No se pudo cargar la lista de platos.</li>';
+      }
+    }
+
+    listaPlatos.addEventListener('click', async (evento) => {
+      const botonGuardar = evento.target.closest('.btn-guardar-precio');
+      if (botonGuardar) {
+        const id = botonGuardar.dataset.id;
+        const input = listaPlatos.querySelector(`.input-precio-fila[data-id="${id}"]`);
+
+        botonGuardar.disabled = true;
+        try {
+          await actualizarPrecio(id, input.value);
+          input.dataset.original = input.value;
+          mostrarMensaje(resAdmin, 'Precio actualizado correctamente.');
+        } catch (error) {
+          console.error('Error al actualizar precio:', error);
+          mostrarMensaje(resAdmin, error.message || 'No se pudo actualizar el precio.', 'error');
+          input.value = input.dataset.original;
+        } finally {
+          botonGuardar.disabled = false;
+        }
+        return;
+      }
+
+      const boton = evento.target.closest('.btn-eliminar');
+      if (!boton) return;
+
+      const id = boton.dataset.id;
+      const nombre = boton.closest('.fila-plato')?.querySelector('.fila-plato-nombre')?.textContent;
+      if (!confirm(`¿Eliminar "${nombre}" del menú? Esta acción no se puede deshacer.`)) return;
+
+      boton.disabled = true;
+      try {
+        await eliminarPlato(id);
+        mostrarMensaje(resAdmin, `"${nombre}" fue eliminado del menú.`);
+        await renderizarPlatos();
+      } catch (error) {
+        console.error('Error al eliminar:', error);
+        mostrarMensaje(resAdmin, error.message || 'No se pudo eliminar el plato.', 'error');
+        boton.disabled = false;
+      }
+    });
+
     observarSesion((usuario) => {
       const haySesion = Boolean(usuario);
       vistaLogin.classList.toggle('oculto', haySesion);
       vistaAdmin.classList.toggle('oculto', !haySesion);
+      if (haySesion) renderizarPlatos();
     });
 
     formLogin.addEventListener('submit', async (evento) => {
@@ -112,6 +199,7 @@
         await agregarPlato(inputNombre.value, inputPrecio.value);
         mostrarMensaje(resAdmin, '¡Plato agregado exitosamente al menú!');
         formAdmin.reset();
+        await renderizarPlatos();
       } catch (error) {
         console.error('Error al guardar:', error);
         mostrarMensaje(resAdmin, error.message || 'Error al guardar el plato.', 'error');
