@@ -7,6 +7,10 @@
     "Stock": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "Pedidos": {
+      ".read": true,
+      ".write": true
     }
   }
 }

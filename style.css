@@ -354,6 +354,86 @@ button.btn-secundario:hover:not(:disabled) {
   justify-content: space-between;
 }
 
+/* Carrito de pedido (index.html) */
+.carrito-totales {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  border: 1px solid rgba(95, 13, 35, 0.12);
+}
+
+.fila-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #532f46;
+  padding: 3px 0;
+}
+
+.fila-total-grande {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(95, 13, 35, 0.25);
+  font-size: 1rem;
+  font-weight: 800;
+  color: #5f0d23;
+}
+
+/* Panel de Pedidos (pedidos.html) */
+.lista-pedidos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tarjeta-pedido {
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(95, 13, 35, 0.12);
+  border-radius: 12px;
+}
+
+.tarjeta-pedido-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tarjeta-pedido-mesa {
+  font-weight: 800;
+  color: #5f0d23;
+  font-size: 0.95rem;
+}
+
+.tarjeta-pedido-items {
+  font-size: 0.82rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.tarjeta-pedido-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select-estado {
+  width: auto;
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.estado-pendiente { background: rgba(179, 38, 30, 0.12); color: #7a1a14; }
+.estado-preparacion { background: rgba(191, 139, 0, 0.15); color: #7a5900; }
+.estado-listo { background: rgba(30, 122, 52, 0.12); color: #14501f; }
+.estado-entregado { background: rgba(95, 13, 35, 0.1); color: #5f0d23; }
+
 @media (max-width: 480px) {
   .fila-form {
     grid-template-columns: 1fr;

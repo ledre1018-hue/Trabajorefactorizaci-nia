@@ -9,6 +9,7 @@
 <body>
   <div class="contenedor-principal">
 
+    <!-- Vista de login: visible mientras no hay sesión -->
     <section id="vista-login">
       <h2>Acceso Administrador</h2>
       <form id="form-login">
@@ -25,6 +26,7 @@
       <div id="res-login" role="status" aria-live="polite"></div>
     </section>
 
+    <!-- Vista de administración: visible solo con sesión activa -->
     <section id="vista-admin" class="oculto">
       <div class="admin-header">
         <h2>Gestión de Menú</h2>
@@ -55,6 +57,9 @@
 
       <div class="nav-link">
         <a href="stock.html">📦 Ir a Gestión de Stock (materia prima)</a>
+      </div>
+      <div class="nav-link">
+        <a href="pedidos.html">🧾 Ir a Pedidos (panel de cocina)</a>
       </div>
     </section>
 
@@ -91,6 +96,9 @@
       el.classList.add(tipo === 'error' ? 'mensaje-error' : 'mensaje-exito');
     }
 
+    // Dibuja la lista de platos desde cero cada vez que cambia el menú.
+    // Es la forma más simple de mantener la UI sincronizada con Firebase
+    // sin meter un framework de reactividad para un panel tan pequeño.
     async function renderizarPlatos() {
       try {
         const menu = await obtenerMenu();
@@ -120,6 +128,9 @@
       }
     }
 
+    // Delegación de eventos: un solo listener en el <ul> maneja tanto
+    // "guardar precio" como "eliminar" de cualquier fila, incluidas las
+    // que se agregan después.
     listaPlatos.addEventListener('click', async (evento) => {
       const botonGuardar = evento.target.closest('.btn-guardar-precio');
       if (botonGuardar) {
@@ -160,6 +171,10 @@
       }
     });
 
+    // El estado de sesión decide qué sección se muestra. Cualquiera puede
+    // *abrir* admin.html, pero sin sesión válida nunca ve el formulario ni
+    // puede escribir en la base de datos (eso además se refuerza con las
+    // reglas de seguridad de Firebase — ver database.rules.json).
     observarSesion((usuario) => {
       const haySesion = Boolean(usuario);
       vistaLogin.classList.toggle('oculto', haySesion);

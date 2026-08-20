@@ -108,12 +108,42 @@
   *también* requiere sesión (a diferencia del menú público, el inventario
   es información interna del negocio, no algo que el mesero necesite ver).
 
+## [3.0.0] Sistema de pedidos real: carrito, persistencia y panel de cocina
+- **`index.html` rediseñado como carrito de pedido**, no un formulario de un
+  solo plato: se ingresa el número de mesa, se agregan varios platos con su
+  cantidad, se pueden quitar antes de confirmar, y se ve el subtotal/IVA/
+  total del pedido completo en tiempo real mientras se arma.
+- **Nuevo módulo `js/pedidos.js`** (plural, no confundir con `js/pedido.js`):
+  `crearPedido`, `obtenerPedidos`, `actualizarEstadoPedido`. Es la capa de
+  persistencia — `pedido.js` sigue siendo solo cálculo puro sin Firebase.
+- **Nueva función pura `calcularTotalCarrito`** en `js/pedido.js`: suma
+  varios ítems y calcula el IVA sobre el subtotal total del pedido (como se
+  factura en la práctica), no plato por plato.
+- Los pedidos se guardan en Firebase bajo el nodo `Pedidos`, con mesa,
+  lista de ítems, subtotal/iva/total, estado inicial "Pendiente" y fecha.
+- **Nueva página `pedidos.html`** (MPA real): panel de cocina/administración
+  protegido con login, que lista todos los pedidos, permite filtrarlos por
+  estado, y cambiar el estado de cada uno (Pendiente → En preparación →
+  Listo → Entregado) con un selector inline. Se refresca sola cada 15
+  segundos además de tener botón de actualización manual.
+- `database.rules.json`: el nodo `Pedidos` quedó con lectura y escritura
+  públicas — a diferencia de `Plaintext` y `Stock`, el mesero en `index.html`
+  no tiene sesión iniciada, así que no puede cumplir `auth != null`. Esto es
+  una decisión de diseño consciente, no un descuido: cualquiera con la URL
+  de la API podría en teoría escribir pedidos falsos directamente (sin pasar
+  por la UI). Para un proyecto de taller es un trade-off aceptable; en un
+  entorno de producción real esto se resolvería con una Cloud Function que
+  valide la escritura, o con un token de sesión de "mesero" más limitado
+  que el de administrador.
+
 ## Pendiente sugerido para estudiantes
 - Ampliar `pedido.test.html` con más casos a medida que se agreguen
-  funciones nuevas a `js/pedido.js` o `js/stock.js`.
+  funciones nuevas a `js/pedido.js` o `js/pedidos.js`.
 - Vincular cada plato del menú con los ingredientes de `stock.html` que
-  consume (por ejemplo, un campo `receta: { panId, carneId, ... }` en cada
-  plato) para poder descontar stock automáticamente al procesar un pedido.
+  consume, para descontar stock automáticamente al confirmar un pedido en
+  `index.html`.
+- Restringir la escritura del nodo `Pedidos` con una Cloud Function o un
+  esquema de autenticación más granular (rol "mesero" vs rol "admin").
 - Si en el futuro el taller suma un backend real, ahí sí Pocket Flow
   encajaría de forma natural para orquestar revisiones automáticas de
   código con un LLM antes de cada despliegue.
